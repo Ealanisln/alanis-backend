@@ -9,6 +9,8 @@ Un sistema centralizado de gestión de clientes y proyectos que sirve a múltipl
 - **Autenticación**: JWT + Refresh Tokens
 - **Documentación**: Swagger/OpenAPI
 - **Validación**: class-validator + class-transformer
+- **Integraciones**: Invoice Ninja + n8n + EventEmitter
+- **Eventos**: Sistema de eventos personalizado
 
 ## 📋 Características Implementadas
 
@@ -17,14 +19,50 @@ Un sistema centralizado de gestión de clientes y proyectos que sirve a múltipl
 - [x] Configuración de Prisma con PostgreSQL
 - [x] Variables de entorno configuradas
 - [x] Dependencias instaladas
+- [x] Scripts de build y deployment configurados
 
 ### ✅ Fase 1: Sistema de Autenticación Multi-tenant
-- [x] Modelos de base de datos multi-tenant
+- [x] Modelos de base de datos multi-tenant completos
 - [x] Módulo de autenticación completo
 - [x] Estrategias JWT (access + refresh tokens)
 - [x] Guards y decoradores personalizados
 - [x] Sistema de roles y permisos
 - [x] Controladores con documentación Swagger
+- [x] Validación de tenant en cada request
+
+### ✅ Fase 2: Gestión de Clientes y Proyectos
+- [x] CRUD completo de clientes por tenant
+- [x] CRUD completo de proyectos
+- [x] Asignación de usuarios a proyectos (ProjectUser)
+- [x] DTOs con validaciones robustas
+- [x] Filtros y queries avanzadas
+- [x] Estados de proyecto (QUOTED, APPROVED, IN_PROGRESS, etc.)
+- [x] Control de horas cotizadas vs utilizadas
+
+### ✅ Fase 3: Control de Tiempo y Actividades
+- [x] Sistema completo de registro de tiempo (TimeEntry)
+- [x] Categorización de actividades (DEVELOPMENT, DESIGN, MEETING, etc.)
+- [x] Control de tareas (Task model)
+- [x] Reportes de tiempo por proyecto
+- [x] Seguimiento de horas facturables vs no facturables
+- [x] API completa con filtros avanzados
+- [x] Actualización automática de horas usadas en proyectos
+
+### ✅ Fase 4: Facturación e Integraciones
+- [x] Integración completa con Invoice Ninja
+  - [x] Sincronización automática de clientes
+  - [x] Creación automática de facturas desde proyectos
+  - [x] Agrupación inteligente de time entries
+  - [x] Control de estado de sincronización
+- [x] Integración completa con n8n
+  - [x] Webhooks para workflows automatizados
+  - [x] Reportes semanales automáticos
+  - [x] Notificaciones de horas bajas en proyectos
+  - [x] Alertas de proyectos aprobados
+- [x] Sistema de eventos robusto
+  - [x] Event listeners para proyectos
+  - [x] Manejo automático de estado
+  - [x] Notificaciones en tiempo real
 
 ## 🗄️ Estructura de la Base de Datos
 
@@ -32,19 +70,20 @@ Un sistema centralizado de gestión de clientes y proyectos que sirve a múltipl
 
 - **Tenant**: Organizaciones (Alanis Web Dev, Cherry Pop Design)
 - **User**: Usuarios del sistema con roles específicos
-- **Client**: Clientes de cada tenant
-- **Project**: Proyectos asignados a clientes
-- **Activity**: Registro de actividades y tiempo
+- **Client**: Clientes de cada tenant con integración Invoice Ninja
+- **Project**: Proyectos con control de horas y facturación
+- **ProjectUser**: Relación many-to-many entre usuarios y proyectos
+- **TimeEntry**: Registro detallado de tiempo con facturación
+- **Task**: Tareas específicas dentro de proyectos
+- **Activity**: Registro de actividades generales
 - **RefreshToken**: Manejo seguro de tokens de actualización
 
-### Roles de Usuario
+### Estados y Enums
 
-- `SUPER_ADMIN`: Acceso completo al sistema
-- `ADMIN`: Administrador de tenant
-- `PROJECT_MANAGER`: Gestor de proyectos
-- `DEVELOPER`: Desarrollador
-- `CLIENT`: Cliente externo
-- `USER`: Usuario básico
+- **ProjectStatus**: `QUOTED`, `APPROVED`, `IN_PROGRESS`, `ON_HOLD`, `COMPLETED`, `CANCELLED`
+- **ActivityType**: `DEVELOPMENT`, `DESIGN`, `MEETING`, `TESTING`, `DOCUMENTATION`, `OTHER`
+- **SyncStatus**: `PENDING`, `SYNCING`, `SYNCED`, `ERROR`
+- **UserRole**: `SUPER_ADMIN`, `ADMIN`, `PROJECT_MANAGER`, `DEVELOPER`, `CLIENT`, `USER`
 
 ## 🚀 Instalación y Configuración
 
@@ -74,6 +113,13 @@ JWT_REFRESH_EXPIRATION="7d"
 NODE_ENV="development"
 PORT=3000
 API_PREFIX="api/v1"
+
+# Invoice Ninja Integration
+INVOICE_NINJA_URL="https://your-invoice-ninja-instance.com"
+INVOICE_NINJA_API_KEY="your-invoice-ninja-api-key"
+
+# n8n Integration
+N8N_WEBHOOK_URL="https://your-n8n-instance.com/webhook"
 ```
 
 ### 3. Configurar la base de datos
@@ -113,6 +159,47 @@ npm run start:prod
 | POST | `/auth/logout-all` | Cerrar todas las sesiones |
 | GET | `/auth/profile` | Obtener perfil del usuario |
 
+### Clientes
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/clients` | Crear cliente |
+| GET | `/clients` | Listar clientes (con filtros) |
+| GET | `/clients/:id` | Obtener cliente específico |
+| PATCH | `/clients/:id` | Actualizar cliente |
+| DELETE | `/clients/:id` | Eliminar cliente |
+
+### Proyectos
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/projects` | Crear proyecto |
+| GET | `/projects` | Listar proyectos |
+| GET | `/projects/:id` | Obtener proyecto específico |
+| PATCH | `/projects/:id` | Actualizar proyecto |
+| DELETE | `/projects/:id` | Eliminar proyecto |
+
+### Control de Tiempo
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/time-tracking/entries` | Crear entrada de tiempo |
+| GET | `/time-tracking/my-entries` | Mis entradas de tiempo |
+| GET | `/time-tracking/projects/:id/report` | Reporte de tiempo por proyecto |
+| PATCH | `/time-tracking/entries/:id` | Actualizar entrada de tiempo |
+| DELETE | `/time-tracking/entries/:id` | Eliminar entrada de tiempo |
+
+### Integraciones
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/integrations/invoice-ninja/sync-client/:id` | Sincronizar cliente |
+| POST | `/integrations/invoice-ninja/create-invoice/:id` | Crear factura |
+| POST | `/integrations/n8n/weekly-report` | Generar reporte semanal |
+| GET | `/integrations/invoice-ninja/test-connection` | Test Invoice Ninja |
+| GET | `/integrations/n8n/test-connection` | Test n8n |
+| GET | `/integrations/status` | Estado de integraciones |
+
 ### Ejemplos de Uso
 
 #### Login
@@ -126,17 +213,33 @@ curl -X POST http://localhost:3000/auth/login \
   }'
 ```
 
-#### Registro
+#### Crear Proyecto
 ```bash
-curl -X POST http://localhost:3000/auth/register \
+curl -X POST http://localhost:3000/projects \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
   -d '{
-    "email": "developer@alanis.dev",
-    "password": "securePassword123",
-    "firstName": "John",
-    "lastName": "Doe",
-    "role": "DEVELOPER",
-    "tenantId": "tenant-id-here"
+    "name": "Nuevo Proyecto Web",
+    "description": "Desarrollo de sitio web corporativo",
+    "clientId": "client-id-here",
+    "quotedHours": 40,
+    "hourlyRate": 75.00,
+    "status": "QUOTED"
+  }'
+```
+
+#### Registrar Tiempo
+```bash
+curl -X POST http://localhost:3000/time-tracking/entries \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-jwt-token" \
+  -d '{
+    "projectId": "project-id-here",
+    "taskId": "task-id-here",
+    "hours": 2.5,
+    "description": "Desarrollo de componente de login",
+    "date": "2024-01-15",
+    "billable": true
   }'
 ```
 
@@ -148,18 +251,30 @@ curl -X POST http://localhost:3000/auth/register \
 - Los tokens JWT incluyen información del tenant
 - Validación automática de tenant en cada request
 - Guards personalizados para control de acceso
+- Decoradores para obtener usuario y tenant actual
 
 ### Roles y Permisos
 
 ```typescript
 // Ejemplo de uso de decoradores
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, TenantGuard)
 @Roles(UserRole.ADMIN, UserRole.PROJECT_MANAGER)
-@RequireTenant('alanis-web-dev')
-async createProject(@CurrentUser() user: AuthenticatedUser) {
-  // Solo admins y PMs de Alanis Web Dev pueden acceder
+async createProject(
+  @CurrentUser() user: JwtPayload,
+  @CurrentTenant() tenantId: string
+) {
+  // Solo admins y PMs pueden crear proyectos
 }
 ```
+
+### Sistema de Eventos
+
+El sistema incluye un robusto sistema de eventos que permite:
+
+- **Eventos de Proyecto**: Aprobación, cambios de estado
+- **Eventos de Tiempo**: Registro automático, alertas de horas
+- **Eventos de Facturación**: Creación automática, sincronización
+- **Listeners Inteligentes**: Procesamiento automático de eventos
 
 ## 🛠️ Scripts Disponibles
 
@@ -167,13 +282,16 @@ async createProject(@CurrentUser() user: AuthenticatedUser) {
 |--------|-------------|
 | `npm run start:dev` | Iniciar en modo desarrollo |
 | `npm run build` | Compilar para producción |
+| `npm run start:prod` | Iniciar en producción |
 | `npm run lint` | Ejecutar linter |
 | `npm run test` | Ejecutar tests |
+| `npm run test:e2e` | Ejecutar tests end-to-end |
 | `npm run db:generate` | Generar cliente Prisma |
 | `npm run db:migrate` | Ejecutar migraciones |
 | `npm run db:seed` | Poblar datos iniciales |
 | `npm run db:reset` | Resetear y repoblar BD |
 | `npm run db:studio` | Abrir Prisma Studio |
+| `npm run deploy:prod` | Deploy completo a producción |
 
 ## 📊 Datos de Prueba
 
@@ -184,8 +302,12 @@ Después de ejecutar `npm run db:seed`, tendrás:
 - **Cherry Pop Design** (slug: `cherry-pop-design`)
 
 ### Usuarios de Prueba
-- **Admin Alanis**: `admin@alanis.dev` / `admin123!`
+- **Super Admin Alanis**: `admin@alanis.dev` / `admin123!`
 - **Admin Cherry**: `admin@cherrypop.design` / `admin123!`
+
+### Datos de Ejemplo
+- Cliente de muestra con proyecto asociado
+- Estructura completa para pruebas de integración
 
 ## 📚 Documentación API
 
@@ -193,25 +315,43 @@ Una vez iniciado el servidor, accede a:
 - **Swagger UI**: http://localhost:3000/api
 - **JSON Schema**: http://localhost:3000/api-json
 
-## 🔮 Próximas Fases
+## 🔮 Estado Actual y Funcionalidades
 
-### Fase 2: Gestión de Clientes y Proyectos
-- [ ] CRUD de clientes por tenant
-- [ ] CRUD de proyectos
-- [ ] Asignación de usuarios a proyectos
-- [ ] Dashboard de resumen
+### ✅ Completamente Implementado
+- ✅ **Sistema Multi-tenant** completo con aislamiento de datos
+- ✅ **Autenticación y Autorización** robusta con JWT
+- ✅ **Gestión de Clientes** con validaciones avanzadas
+- ✅ **Gestión de Proyectos** con estados y control de horas
+- ✅ **Control de Tiempo** detallado con facturación
+- ✅ **Integraciones** funcionales con Invoice Ninja y n8n
+- ✅ **Sistema de Eventos** para automatización
+- ✅ **API RESTful** completa con documentación Swagger
 
-### Fase 3: Control de Tiempo y Actividades
-- [ ] Registro de tiempo por proyecto
-- [ ] Categorización de actividades
-- [ ] Reportes de tiempo
-- [ ] Exportación de datos
+### 🚀 Características Avanzadas
+- **Sincronización Automática**: Clientes con Invoice Ninja
+- **Facturación Inteligente**: Creación automática desde time entries
+- **Reportes Automatizados**: Semanales via n8n
+- **Alertas Proactivas**: Notificaciones de horas bajas
+- **Eventos en Tiempo Real**: Sistema de listeners automáticos
+- **Validaciones Robustas**: DTOs con class-validator
+- **Documentación Completa**: Swagger/OpenAPI integrado
 
-### Fase 4: Facturación e Integraciones
-- [ ] Integración con Invoice Ninja
-- [ ] Generación automática de facturas
-- [ ] Integración con n8n
-- [ ] Webhooks y notificaciones
+## 🏆 Arquitectura y Patrones
+
+### Patrones Implementados
+- **Repository Pattern**: Via Prisma Service
+- **Event-Driven Architecture**: Sistema de eventos personalizado
+- **Multi-tenancy**: Aislamiento completo por tenant
+- **Clean Architecture**: Separación clara de responsabilidades
+- **Dependency Injection**: NestJS IoC container
+- **Strategy Pattern**: Guards y strategies personalizados
+
+### Integraciones de Terceros
+- **Invoice Ninja**: API completa para facturación
+- **n8n**: Automatización via webhooks
+- **Prisma**: ORM con type safety
+- **JWT**: Autenticación stateless
+- **Swagger**: Documentación automática
 
 ## 🤝 Contribución
 

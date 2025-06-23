@@ -9,6 +9,8 @@ import { ClientsModule } from './clients/clients.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TimeTrackingModule } from './time-tracking/time-tracking.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { QuotesModule } from './quotes/quotes.module';
+import { ContactModule } from './contact/contact.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 @Module({
@@ -23,6 +25,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     ProjectsModule,
     TimeTrackingModule,
     IntegrationsModule,
+    QuotesModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [

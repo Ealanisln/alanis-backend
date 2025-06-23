@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TimeEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { EventsService } from '../common/events/events.service';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { TimeEntryQueryDto } from './dto/time-entry-query.dto';
 
@@ -21,10 +20,7 @@ export interface TimeEntryWithRelations {
 
 @Injectable()
 export class TimeTrackingService {
-  constructor(
-    private prisma: PrismaService,
-    private eventsService: EventsService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async createTimeEntry(
     createTimeEntryDto: CreateTimeEntryDto,
@@ -108,20 +104,21 @@ export class TimeTrackingService {
       throw new NotFoundException('Updated project not found');
     }
 
+    // TODO: Re-implement events when EventsService dependency is resolved
     // Emitir evento para n8n
-    await this.eventsService.emitTimeTracked(
-      timeEntry,
-      updatedProject.quotedHours - updatedProject.usedHours,
-    );
+    // await this.eventsService.emitTimeTracked(
+    //   timeEntry,
+    //   updatedProject.quotedHours - updatedProject.usedHours,
+    // );
 
     // Verificar si hay que enviar alertas de horas
     const percentageUsed =
       (updatedProject.usedHours / updatedProject.quotedHours) * 100;
     if (percentageUsed >= 80) {
-      await this.eventsService.emitProjectHoursWarning(
-        updatedProject,
-        percentageUsed,
-      );
+      // await this.eventsService.emitProjectHoursWarning(
+      //   updatedProject,
+      //   percentageUsed,
+      // );
     }
 
     return timeEntry;

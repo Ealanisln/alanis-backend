@@ -52,6 +52,23 @@ enum ActivityType {
   OTHER
 }
 
+enum QuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  APPROVED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum ContactFormStatus {
+  PENDING
+  RESPONDED
+  SPAM
+  ARCHIVED
+}
+
 model Tenant {
   id          String      @id @default(cuid())
   name        String
@@ -67,6 +84,8 @@ model Tenant {
   clients     Client[]
   projects    Project[]
   activities  Activity[]
+  quotes      Quote[]
+  contactForms ContactForm[]
 
   @@map("tenants")
 }
@@ -166,6 +185,7 @@ model Project {
   timeEntries     TimeEntry[]
   tasks           Task[]
   // invoices        Invoice[]  // TODO: Uncomment when Invoice model is created
+  convertedFrom   Quote?
   
   // Metadata
   quotationData   Json?         // Datos del cotizador original
@@ -257,15 +277,14 @@ model Task {
   id          String       @id @default(cuid())
   title       String
   description String?
-  status      String       @default("TODO") // TODO, IN_PROGRESS, DONE
-  priority    String       @default("MEDIUM") // LOW, MEDIUM, HIGH
-  estimatedHours Float?
+  completed   Boolean      @default(false)
+  dueDate     DateTime?
   
   projectId   String
   project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
-  assignedUserId String?
-  assignedUser   User?    @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedToId String?
+  assignedTo   User?       @relation(fields: [assignedToId], references: [id])
   
   timeEntries TimeEntry[]
   
@@ -273,7 +292,96 @@ model Task {
   updatedAt   DateTime     @updatedAt
   
   @@index([projectId])
-  @@index([assignedUserId])
-  @@index([status])
+  @@index([assignedToId])
   @@map("tasks")
+}
+
+// Modelo para las cotizaciones web públicas
+model Quote {
+  id              String        @id @default(cuid())
+  quoteNumber     String        @unique
+  
+  // Información del cliente
+  clientName      String
+  clientEmail     String
+  clientPhone     String?
+  clientCompany   String?
+  
+  // Datos del proyecto cotizado
+  projectName     String
+  projectType     String        // 'web', 'ecommerce', 'custom', etc.
+  description     String?
+  
+  // Servicios seleccionados (JSON array)
+  services        Json          // Array de servicios con configuraciones
+  
+  // Cálculos
+  subtotal        Decimal       @db.Decimal(10, 2)
+  tax             Decimal       @db.Decimal(10, 2) @default(0)
+  discount        Decimal       @db.Decimal(10, 2) @default(0)
+  total           Decimal       @db.Decimal(10, 2)
+  
+  // Plazos y condiciones
+  estimatedHours  Float?
+  deliveryDays    Int?
+  
+  // Estado y seguimiento
+  status          QuoteStatus   @default(DRAFT)
+  validUntil      DateTime?
+  
+  // Información adicional
+  notes           String?
+  internalNotes   String?       // Solo para uso interno
+  
+  // Conversión a proyecto (opcional)
+  projectId       String?       @unique
+  convertedProject Project?     @relation(fields: [projectId], references: [id])
+  
+  // Tenant (para multi-tenancy)
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Metadata
+  metadata        Json?         // Datos adicionales del cotizador
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([tenantId, status])
+  @@index([clientEmail])
+  @@index([quoteNumber])
+  @@map("quotes")
+}
+
+// Modelo para formularios de contacto
+model ContactForm {
+  id          String            @id @default(cuid())
+  name        String
+  email       String
+  message     String
+  phone       String?
+  company     String?
+  subject     String?
+  
+  // Metadata
+  userAgent   String?
+  ipAddress   String?
+  source      String?           // 'website', 'admin', etc.
+  
+  // Estado
+  status      ContactFormStatus @default(PENDING)
+  response    String?           // Respuesta del admin
+  respondedAt DateTime?
+  respondedBy String?           // ID del usuario que respondió
+  
+  tenantId    String
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  @@index([tenantId, status])
+  @@index([email])
+  @@index([createdAt])
+  @@map("contact_forms")
 }
